@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  passwordHash   String?
+  username       String          @unique
+  firstName      String
+  lastName       String
+  currentBalance Decimal?        @db.Decimal(14, 2)
+  monthlyNetIncome        Decimal? @db.Decimal(14, 2)
+  monthlyHousingCost      Decimal? @db.Decimal(14, 2)
+  monthlyUtilitiesCost    Decimal? @db.Decimal(14, 2)
+  monthlyOtherFixedCosts  Decimal? @db.Decimal(14, 2)
+  currency                String   @default("EUR")
+  salaryDay               Int?
+  lastSalaryDate          DateTime?
+  currentStreakDays       Int      @default(0)
+  bestStreakDays          Int      @default(0)
+  lastStreakDate          DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  oauthAccounts  OAuthAccount[]
+  sessions       UserSession[]
+  authAuditLogs  AuthAuditLog[]
+  accounts       Account[]
+  transactions   Transaction[]
+  savingsGoals   SavingsGoal[]
+  dailyBudgets   DailyBudget[]
+  notifications  Notification[]
+}
+
+model UserSession {
+  id                 String   @id @default(cuid())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String
+  refreshTokenHash   String   @unique
+  userAgent          String?
+  ipAddress          String?
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId, expiresAt])
+}
+
+model AuthAuditLog {
+  id          String   @id @default(cuid())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId      String?
+  eventType   String
+  success     Boolean
+  email       String?
+  ipAddress   String?
+  userAgent   String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model OAuthAccount {
+  id                 String   @id @default(cuid())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String
+
+  provider           String
+  providerAccountId  String
+
+  accessToken        String?
+  refreshToken       String?
+  expiresAt          DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+}
+
+model Account {
+  id                   String         @id @default(cuid())
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String
+
+  provider             String
+  providerAccountId    String
+  name                 String?
+  institutionName      String?
+  currency             String         @default("EUR")
+
+  accessToken          String?
+  refreshToken         String?
+  accessTokenExpiresAt DateTime?
+
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  transactions         Transaction[]
+
+  primaryGoal          SavingsGoal[]  @relation("PrimaryAccountGoals")
+
+  @@unique([provider, providerAccountId])
+}
+
+model Category {
+  id           String         @id @default(cuid())
+  name         String         @unique
+  displayName  String
+  color        String?
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id           String      @id @default(cuid())
+  externalId   String?
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+
+  account      Account?    @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId    String?
+
+  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId   String?
+
+  amount       Decimal     @db.Decimal(14, 2)
+  merchant     String?
+  description  String?
+  date         DateTime
+  currency     String      @default("EUR")
+
+  isPending    Boolean     @default(false)
+  isExcluded   Boolean     @default(false)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId, date])
+  @@index([accountId, date])
+}
+
+model SavingsGoal {
+  id               String      @id @default(cuid())
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+
+  name             String
+  goalAmount       Decimal     @db.Decimal(14, 2)
+  targetDate       DateTime
+  startingBalance  Decimal?    @db.Decimal(14, 2)
+  completedAt      DateTime?
+
+  primaryAccount   Account?    @relation("PrimaryAccountGoals", fields: [primaryAccountId], references: [id], onDelete: SetNull)
+  primaryAccountId String?
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  dailyBudgets     DailyBudget[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String   // "success" | "warning" | "danger" | "info"
+  key       String   // notification kind, e.g. "budgetExceeded", "carryOver"
+  params    Json?    // template params for frontend i18n
+  isRead    Boolean  @default(false)
+  date      DateTime // date-only (UTC midnight) for deduplication per day
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key, date])
+  @@index([userId, date])
+}
+
+model DailyBudget {
+  id                 String      @id @default(cuid())
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String
+
+  date               DateTime
+
+  baseDailyAllowance Decimal     @db.Decimal(14, 2)
+  carryOverFromPrev  Decimal     @db.Decimal(14, 2)
+  spentToday         Decimal     @db.Decimal(14, 2) @default(0)
+  computedLimit      Decimal     @db.Decimal(14, 2)
+
+  goal               SavingsGoal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  goalId             String?
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@unique([userId, date])
+}
