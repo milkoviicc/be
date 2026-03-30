@@ -117,10 +117,11 @@ router.post("/register", rateLimitAuth(8, 15 * 60 * 1000, "auth-register"), asyn
     },
   });
 
-  await issueSessionCookies(res, req, user.id);
+  const accessToken = await issueSessionCookies(res, req, user.id);
   const csrfToken = issueCsrfCookie(res);
   await logAuthEvent({ req, eventType: "auth.register.success", success: true, userId: user.id, email: user.email });
   return res.status(201).json({
+    accessToken,
     csrfToken,
     user: {
       id: user.id,
@@ -189,10 +190,11 @@ router.post("/login", rateLimitAuth(10, 15 * 60 * 1000, "auth-login"), async (re
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
-  await issueSessionCookies(res, req, user.id);
+  const accessToken = await issueSessionCookies(res, req, user.id);
   const csrfToken = issueCsrfCookie(res);
   await logAuthEvent({ req, eventType: "auth.login.success", success: true, userId: user.id, email: user.email });
   return res.json({
+    accessToken,
     csrfToken,
     user: {
       id: user.id,

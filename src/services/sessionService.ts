@@ -127,7 +127,7 @@ function mintRefreshToken(): string {
   return randomBytes(48).toString("hex");
 }
 
-export async function issueSessionCookies(res: Response, req: Request, userId: string) {
+export async function issueSessionCookies(res: Response, req: Request, userId: string): Promise<string> {
   const accessExpiry = nextAccessExpiryUtc();
   const accessToken = jwt.sign(
     { sub: userId, exp: Math.floor(accessExpiry.getTime() / 1000) },
@@ -159,6 +159,8 @@ export async function issueSessionCookies(res: Response, req: Request, userId: s
     httpOnly: true,
     maxAge: REFRESH_TTL_MS,
   });
+
+  return accessToken;
 }
 
 export async function rotateSessionFromRefresh(req: Request, res: Response): Promise<string | null> {

@@ -7,9 +7,20 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const token = req.cookies?.[ACCESS_COOKIE_NAME];
-  if (token) {
-    const payload = parseAccessToken(token);
+  // Check Authorization: Bearer header first (cross-domain clients)
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const payload = parseAccessToken(authHeader.slice(7));
+    if (payload && payload.exp * 1000 > Date.now()) {
+      req.userId = payload.sub;
+      return next();
+    }
+  }
+
+  // Fall back to cookie
+  const cookieToken = req.cookies?.[ACCESS_COOKIE_NAME];
+  if (cookieToken) {
+    const payload = parseAccessToken(cookieToken);
     if (payload && payload.exp * 1000 > Date.now()) {
       req.userId = payload.sub;
       return next();
