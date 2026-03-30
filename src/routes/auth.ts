@@ -118,8 +118,10 @@ router.post("/register", rateLimitAuth(8, 15 * 60 * 1000, "auth-register"), asyn
   });
 
   await issueSessionCookies(res, req, user.id);
+  const csrfToken = issueCsrfCookie(res);
   await logAuthEvent({ req, eventType: "auth.register.success", success: true, userId: user.id, email: user.email });
   return res.status(201).json({
+    csrfToken,
     user: {
       id: user.id,
       email: user.email,
@@ -188,8 +190,10 @@ router.post("/login", rateLimitAuth(10, 15 * 60 * 1000, "auth-login"), async (re
   }
 
   await issueSessionCookies(res, req, user.id);
+  const csrfToken = issueCsrfCookie(res);
   await logAuthEvent({ req, eventType: "auth.login.success", success: true, userId: user.id, email: user.email });
   return res.json({
+    csrfToken,
     user: {
       id: user.id,
       email: user.email,
@@ -252,11 +256,9 @@ router.get("/me", authMiddleware, async (req: AuthenticatedRequest, res) => {
 
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  if (!req.cookies?.[CSRF_COOKIE_NAME]) {
-    issueCsrfCookie(res);
-  }
+  const csrfToken = req.cookies?.[CSRF_COOKIE_NAME] ?? issueCsrfCookie(res);
 
-  return res.json(user);
+  return res.json({ ...user, csrfToken });
 });
 
 /**

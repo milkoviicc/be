@@ -28,7 +28,7 @@ type ZonedParts = {
 function cookieBase() {
   return {
     secure: NODE_ENV === "production",
-    sameSite: "lax" as const,
+    sameSite: NODE_ENV === "production" ? ("none" as const) : ("lax" as const),
     path: "/",
   };
 }
