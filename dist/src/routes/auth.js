@@ -108,9 +108,12 @@ router.post("/register", (0, rateLimitMiddleware_1.rateLimitAuth)(8, 15 * 60 * 1
             monthlyOtherFixedCosts,
         },
     });
-    await (0, sessionService_1.issueSessionCookies)(res, req, user.id);
+    const accessToken = await (0, sessionService_1.issueSessionCookies)(res, req, user.id);
+    const csrfToken = (0, auth_1.issueCsrfCookie)(res);
     await (0, auditService_1.logAuthEvent)({ req, eventType: "auth.register.success", success: true, userId: user.id, email: user.email });
     return res.status(201).json({
+        accessToken,
+        csrfToken,
         user: {
             id: user.id,
             email: user.email,
@@ -172,9 +175,12 @@ router.post("/login", (0, rateLimitMiddleware_1.rateLimitAuth)(10, 15 * 60 * 100
         await (0, auditService_1.logAuthEvent)({ req, eventType: "auth.login.invalid_password", success: false, userId: user.id, email: user.email });
         return res.status(401).json({ error: "Invalid credentials" });
     }
-    await (0, sessionService_1.issueSessionCookies)(res, req, user.id);
+    const accessToken = await (0, sessionService_1.issueSessionCookies)(res, req, user.id);
+    const csrfToken = (0, auth_1.issueCsrfCookie)(res);
     await (0, auditService_1.logAuthEvent)({ req, eventType: "auth.login.success", success: true, userId: user.id, email: user.email });
     return res.json({
+        accessToken,
+        csrfToken,
         user: {
             id: user.id,
             email: user.email,
@@ -233,10 +239,8 @@ router.get("/me", authMiddleware_1.authMiddleware, async (req, res) => {
     });
     if (!user)
         return res.status(404).json({ error: "User not found" });
-    if (!req.cookies?.[auth_1.CSRF_COOKIE_NAME]) {
-        (0, auth_1.issueCsrfCookie)(res);
-    }
-    return res.json(user);
+    const csrfToken = req.cookies?.[auth_1.CSRF_COOKIE_NAME] ?? (0, auth_1.issueCsrfCookie)(res);
+    return res.json({ ...user, csrfToken });
 });
 /**
  * @swagger

@@ -14,11 +14,12 @@ import { notificationsRouter } from "./routes/notifications";
 import { authMiddleware } from "./middleware/authMiddleware";
 import { csrfMiddleware } from "./middleware/csrfMiddleware";
 import { swaggerSpec } from "./docs/swagger";
+import { envValue } from "./utils/env";
 
 const app = express();
 
-const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 4000;
-const ORIGIN = process.env.APP_ORIGIN || "http://localhost:3000";
+const PORT = Number(envValue({ prod: "APP_PORT", dev: "DEV_APP_PORT", fallback: "4000" }));
+const ORIGIN = envValue({ prod: "APP_ORIGIN", dev: "DEV_APP_ORIGIN", fallback: "http://localhost:3000" })!;
 const ORIGINS = ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 
 app.use(

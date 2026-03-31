@@ -18,9 +18,10 @@ const notifications_1 = require("./routes/notifications");
 const authMiddleware_1 = require("./middleware/authMiddleware");
 const csrfMiddleware_1 = require("./middleware/csrfMiddleware");
 const swagger_1 = require("./docs/swagger");
+const env_1 = require("./utils/env");
 const app = (0, express_1.default)();
-const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 4000;
-const ORIGIN = process.env.APP_ORIGIN || "http://localhost:3000";
+const PORT = Number((0, env_1.envValue)({ prod: "APP_PORT", dev: "DEV_APP_PORT", fallback: "4000" }));
+const ORIGIN = (0, env_1.envValue)({ prod: "APP_ORIGIN", dev: "DEV_APP_ORIGIN", fallback: "http://localhost:3000" });
 const ORIGINS = ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 app.use((0, cors_1.default)({
     origin: ORIGINS.length <= 1 ? ORIGINS[0] : ORIGINS,

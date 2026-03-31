@@ -20,7 +20,7 @@ const csrfMiddleware_1 = require("./middleware/csrfMiddleware");
 const swagger_1 = require("./docs/swagger");
 const app = (0, express_1.default)();
 const PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 4000;
-const ORIGIN = process.env.APP_ORIGIN || "http://localhost:3000";
+const ORIGIN = process.env.DEV_APP_ORIGIN || "http://localhost:3000";
 const ORIGINS = ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 app.use((0, cors_1.default)({
     origin: ORIGINS.length <= 1 ? ORIGINS[0] : ORIGINS,

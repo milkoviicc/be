@@ -25,7 +25,7 @@ exports.REFRESH_COOKIE_NAME = "smartsave_refresh";
 function cookieBase() {
     return {
         secure: NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: NODE_ENV === "production" ? "none" : "lax",
         path: "/",
     };
 }
@@ -122,6 +122,7 @@ async function issueSessionCookies(res, req, userId) {
         httpOnly: true,
         maxAge: REFRESH_TTL_MS,
     });
+    return accessToken;
 }
 async function rotateSessionFromRefresh(req, res) {
     const refreshToken = req.cookies?.[exports.REFRESH_COOKIE_NAME];
