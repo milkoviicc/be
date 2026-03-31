@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
-const client_1 = require("@prisma/client");
+const default_1 = require(".prisma/client/default");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const pg_1 = __importDefault(require("pg"));
 const env_1 = require("../src/utils/env");
@@ -12,7 +12,7 @@ const connectionString = (0, env_1.envValue)({ prod: "DATABASE_URL", dev: "DEV_D
     "postgresql://postgres:postgres@localhost:5432/postgres?schema=public";
 const pool = new pg_1.default.Pool({ connectionString });
 const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
+const prisma = new default_1.PrismaClient({ adapter });
 const categories = [
     { name: "groceries", displayName: "Groceries", color: "#22c55e" },
     { name: "food", displayName: "Food & Dining", color: "#f97316" },

@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { prisma } from "../utils/prismaClient";
-import { Prisma } from '@prisma/client';
+import { Prisma } from ".prisma/client/default";
 
 export async function logAuthEvent(args: {
   req: Request;
