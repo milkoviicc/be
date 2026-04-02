@@ -203,23 +203,33 @@ export async function refreshTodayBudgetSpent(userId: string) {
   // Get or create budget with correct income-based baseDailyAllowance
   const budget = await getOrCreateTodayBudget(userId);
 
-  // Recalculate spentToday: sum only expenses (negative amounts) and store as positive
-  const agg = await prisma.transaction.aggregate({
+  const endOfDay = new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000);
+
+  // Sum expenses (negative amounts) — store as positive
+  const expenseAgg = await prisma.transaction.aggregate({
     where: {
       userId,
       isExcluded: false,
       amount: { lt: 0 },
-      date: {
-        gte: dateOnly,
-        lt: new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000),
-      },
+      date: { gte: dateOnly, lt: endOfDay },
     },
     _sum: { amount: true },
   });
 
-  // sum is negative (e.g. -120), negate to get positive spentToday
-  const spentToday = (agg._sum.amount ?? new Decimal(0)).abs();
-  const computedLimit = budget.baseDailyAllowance.add(budget.carryOverFromPrev).sub(spentToday);
+  // Sum manual income (positive amounts, non-excluded) — directly offsets today's spending
+  const incomeAgg = await prisma.transaction.aggregate({
+    where: {
+      userId,
+      isExcluded: false,
+      amount: { gt: 0 },
+      date: { gte: dateOnly, lt: endOfDay },
+    },
+    _sum: { amount: true },
+  });
+
+  const spentToday = (expenseAgg._sum.amount ?? new Decimal(0)).abs();
+  const incomeToday = incomeAgg._sum.amount ?? new Decimal(0);
+  const computedLimit = budget.baseDailyAllowance.add(budget.carryOverFromPrev).sub(spentToday).add(incomeToday);
 
   return prisma.dailyBudget.update({
     where: { userId_date: { userId, date: dateOnly } },
