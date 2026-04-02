@@ -99,34 +99,44 @@ export async function getOrCreateTodayBudget(userId: string) {
 
   const carryOverFromPrev = yesterday ? yesterday.computedLimit.sub(yesterday.spentToday) : new Decimal(0);
 
-  // Update streak based on yesterday's performance
+  // Update streak based on yesterday's performance (only once per day)
   if (yesterday && user) {
-    const yesterdayLimit = yesterday.baseDailyAllowance.add(yesterday.carryOverFromPrev);
-    const withinBudget = yesterday.spentToday.lte(yesterdayLimit);
-
-    const isConsecutiveDay =
+    const alreadyProcessed =
       user.lastStreakDate &&
       new Date(
         Date.UTC(user.lastStreakDate.getUTCFullYear(), user.lastStreakDate.getUTCMonth(), user.lastStreakDate.getUTCDate()),
       ).getTime() === yesterdayDate.getTime();
 
-    let newCurrentStreak = user.currentStreakDays;
-    if (withinBudget) {
-      newCurrentStreak = isConsecutiveDay ? user.currentStreakDays + 1 : 1;
-    } else {
-      newCurrentStreak = 0;
+    if (!alreadyProcessed) {
+      const yesterdayLimit = yesterday.baseDailyAllowance.add(yesterday.carryOverFromPrev);
+      const withinBudget = yesterday.spentToday.lte(yesterdayLimit);
+
+      const prevLastStreakDate = user.lastStreakDate
+        ? new Date(
+            Date.UTC(user.lastStreakDate.getUTCFullYear(), user.lastStreakDate.getUTCMonth(), user.lastStreakDate.getUTCDate()),
+          )
+        : null;
+      const twoDaysAgo = new Date(yesterdayDate.getTime() - 86400000);
+      const isConsecutiveDay = prevLastStreakDate !== null && prevLastStreakDate.getTime() === twoDaysAgo.getTime();
+
+      let newCurrentStreak = user.currentStreakDays;
+      if (withinBudget) {
+        newCurrentStreak = isConsecutiveDay ? user.currentStreakDays + 1 : 1;
+      } else {
+        newCurrentStreak = 0;
+      }
+
+      const newBestStreak = Math.max(user.bestStreakDays, newCurrentStreak);
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          currentStreakDays: newCurrentStreak,
+          bestStreakDays: newBestStreak,
+          lastStreakDate: yesterdayDate,
+        },
+      });
     }
-
-    const newBestStreak = Math.max(user.bestStreakDays, newCurrentStreak);
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        currentStreakDays: newCurrentStreak,
-        bestStreakDays: newBestStreak,
-        lastStreakDate: yesterdayDate,
-      },
-    });
   }
 
   const computedLimit = baseDailyAllowance.add(carryOverFromPrev);
