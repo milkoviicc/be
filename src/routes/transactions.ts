@@ -90,16 +90,13 @@ router.post("/", async (req: AuthenticatedRequest, res) => {
     include: { category: true },
   });
 
-  // Recalculate today's budget if the transaction is for today
-  const today = utcMidnightForAppDate();
-  const isToday =
-    txDate.getUTCFullYear() === today.getUTCFullYear() &&
-    txDate.getUTCMonth() === today.getUTCMonth() &&
-    txDate.getUTCDate() === today.getUTCDate();
+  // Update currentBalance to reflect the new transaction
+  await prisma.user.updateMany({
+    where: { id: req.userId, currentBalance: { not: null } },
+    data: { currentBalance: { increment: signedAmount } },
+  });
 
-  if (isToday) {
-    await refreshTodayBudgetSpent(req.userId);
-  }
+  await refreshTodayBudgetSpent(req.userId);
 
   return res.status(201).json(transaction);
 });
@@ -117,6 +114,15 @@ router.delete("/:id", async (req: AuthenticatedRequest, res) => {
   }
 
   await prisma.transaction.delete({ where: { id } });
+
+  // Reverse the balance effect of the deleted transaction (skip excluded, e.g. salary auto-entries)
+  if (!tx.isExcluded) {
+    await prisma.user.updateMany({
+      where: { id: req.userId, currentBalance: { not: null } },
+      data: { currentBalance: { increment: -Number(tx.amount) } },
+    });
+  }
+
   await refreshTodayBudgetSpent(req.userId);
 
   return res.json({ ok: true });
