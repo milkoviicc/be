@@ -7,7 +7,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middleware/authMiddlewa
 import { csrfMiddleware } from "../middleware/csrfMiddleware";
 import { rateLimitAuth } from "../middleware/rateLimitMiddleware";
 import { processSalaryIfDue } from "../services/salaryService";
-import { clearAuthCookies, CSRF_COOKIE_NAME, issueCsrfCookie } from "../utils/auth";
+import { clearAuthCookies, generateCsrfToken } from "../utils/auth";
 import { issueSessionCookies, revokeCurrentSession } from "../services/sessionService";
 import { logAuthEvent } from "../services/auditService";
 
@@ -118,7 +118,7 @@ router.post("/register", rateLimitAuth(8, 15 * 60 * 1000, "auth-register"), asyn
   });
 
   const accessToken = await issueSessionCookies(res, req, user.id);
-  const csrfToken = issueCsrfCookie(res);
+  const csrfToken = generateCsrfToken(user.id);
   await logAuthEvent({ req, eventType: "auth.register.success", success: true, userId: user.id, email: user.email });
   return res.status(201).json({
     accessToken,
@@ -191,7 +191,7 @@ router.post("/login", rateLimitAuth(10, 15 * 60 * 1000, "auth-login"), async (re
   }
 
   const accessToken = await issueSessionCookies(res, req, user.id);
-  const csrfToken = issueCsrfCookie(res);
+  const csrfToken = generateCsrfToken(user.id);
   await logAuthEvent({ req, eventType: "auth.login.success", success: true, userId: user.id, email: user.email });
   return res.json({
     accessToken,
@@ -258,7 +258,7 @@ router.get("/me", authMiddleware, async (req: AuthenticatedRequest, res) => {
 
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  const csrfToken = req.cookies?.[CSRF_COOKIE_NAME] ?? issueCsrfCookie(res);
+  const csrfToken = generateCsrfToken(req.userId!);
 
   return res.json({ ...user, csrfToken });
 });
